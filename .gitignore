@@ -1,0 +1,7 @@
+*.pyc
+*.sw[mnop]
+client_secret.json
+.credentials.json
+lib/
+.vscode/
+.idea
