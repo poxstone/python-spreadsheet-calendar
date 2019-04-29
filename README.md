@@ -12,6 +12,8 @@ Put calendar
     pip install --upgrade httplib2 -t lib/
     pip install --upgrade google-api-python-client -t lib/
     pip install --upgrade python-dateutil -t lib/
+    pip install --upgrade oauth2client
+    pip install --upgrade python-dateutil
 
 ## Execute
     python get_calendar_month_events.py
