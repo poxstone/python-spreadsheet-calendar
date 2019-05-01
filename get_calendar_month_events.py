@@ -29,11 +29,11 @@ SCOPES = ['https://www.googleapis.com/auth/calendar.readonly',
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'Extract Calendar tasks'
 PROJECTS = ['XSA', 'XSAU', 'XSC', 'XSCM', 'XSF', 'XSK', 'XSKIT', 'XSP', 'XSS',
-            'XST', 'XSX', 'GCP']
+            'XST', 'XSX', 'GCP', 'ALDEAMO', 'UNAL']
 TASKS = ['DEV', 'DSN', 'ENT', 'IMP', 'INV', 'REU', 'SOP', 'DOC']
-SHEET_NAME = 'DEV-OUTPUT-CALENDAR'
+SHEET_NAME = 'DEV-OUTPUT-CALENDAR-2'
 SHEET_PAGE = 'month_'
-MONTH = None
+MONTH = 4
 YEAR = None
 
 
@@ -54,11 +54,12 @@ def get_credentials():
     return credentials
 
 
-def extractType(description, list):
+def extractType(description, list_word):
     find = '-'
 
-    for word in list:
-        if re.match(r'.*' + re.escape(word) + r'\W.*', description, re.M):
+    for word in list_word:
+        word_re = re.compile('.*' + word + '\W.*')
+        if re.match(word_re, description.decode("utf-8")):
             find = word
             break
 
@@ -66,6 +67,11 @@ def extractType(description, list):
 
 
 def prettyDate(date_string):
+    try:
+        date_string = date_string.decode("utf-8")
+    except Exception as e:
+        pritn('error')
+
     pretty_date = re.sub(r'^(\d+-){2}', '', date_string)
     pretty_date = re.sub(r'((:|-)\d+){3}$', '', pretty_date)
     return re.sub(r'T', '/', pretty_date)
@@ -146,8 +152,11 @@ def main():
     year = YEAR if YEAR else date_now.year
     month = MONTH if MONTH else date_now.month
     last_day = calendar.monthrange(year, month)[1]
+
     date_ini = datetime.datetime(year, month, 1, 00).isoformat() + 'Z'
     date_end = datetime.datetime(year, month, last_day, 00).isoformat() + 'Z'
+    print('start: ', date_ini)
+    print('end: ', date_end)
     page_name = SHEET_PAGE + str(month)
 
     # get calendar events
@@ -169,8 +178,14 @@ def main():
                       'Description ({}-{})'.format(year, month)]]
     # events to array
     for event in event_sort:
-        time_start = event['start'].get('dateTime').encode('utf-8').strip()
-        time_end = event['end'].get('dateTime').encode('utf-8').strip()
+        print(event['start'])
+        if 'dateTime' in event['start']:
+            time_start = event['start'].get('dateTime').encode('utf-8').strip()
+            time_end = event['end'].get('dateTime').encode('utf-8').strip()
+        if 'date' in event['start']:
+            time_start = event['start'].get('date').encode('utf-8').strip()
+            time_end = event['end'].get('date').encode('utf-8').strip()
+
         time_delta = str(dateutil.parser.parse(time_end) \
                     - dateutil.parser.parse(time_start))
         description = event['summary'].encode('utf-8').strip()
@@ -178,17 +193,18 @@ def main():
         type_work = extractType(description, TASKS)
 
         array_to_sheet.append([prettyDate(time_start), prettyDate(time_end),
-                               time_delta, project, type_work, description])    
+                               time_delta, project, type_work, description.decode('utf-8')])
 
     # clear all sheet
     spread_service.spreadsheets().values().clear(
         spreadsheetId=sheet_id, range=page_name, body={})
 
-    # save events in sheet
+    body_val = {"values": array_to_sheet}
+
     response = spread_service.spreadsheets().values().append(
         spreadsheetId=sheet_id, range=page_name,
         insertDataOption='INSERT_ROWS', valueInputOption='USER_ENTERED',
-        body={"values": array_to_sheet}).execute()
+        body=body_val).execute()
 
     print(response)
     print("spreadsheet: https://docs.google.com/spreadsheets/d/{}/edit#gid={}"\

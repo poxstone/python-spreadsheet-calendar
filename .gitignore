@@ -1,5 +1,6 @@
 *.pyc
 *.sw[mnop]
+virtual_env/*
 client_secret.json
 .credentials.json
 lib/
